@@ -198,4 +198,42 @@ const refreshAccessAndToken = asyncHandler(async (req, res) => {
   }
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessAndToken }
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body
+
+  const user = await User.findById(req.user?._id)
+
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+  // * will this work
+  // const isPasswordCorrect = req.user.isPasswordCorrect(oldPassword)
+
+  if (!isPasswordCorrect) throw new apiError(401, 'invalid new password')
+  user.password = newPassword
+  await user.save({ validateBeforeSave: false })
+
+  return res
+    .status(201)
+    .json(new apiResponse(201, {}, 'Password update successfully'))
+})
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new apiResponse(200, req.user, 'user fetched successfully'))
+})
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullname, username } = req.body
+
+  if (!fullname || !username)
+    throw new apiError(400, 'fullname & username are required')
+})
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessAndToken,
+  changeCurrentPassword,
+  getCurrentUser,
+}
