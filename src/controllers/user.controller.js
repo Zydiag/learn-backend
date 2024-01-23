@@ -4,6 +4,21 @@ import { User } from '../models/user.model.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
 import { apiResponse } from '../utils/apiResponse.js'
 
+const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId)
+    const accessToken = await user.generateAccessToken()
+    const refreshToken = await user.generateRefreshToken()
+
+    user.refreshToken = refreshToken
+    await user.save({ ValidityState: false })
+
+    return { accessToken, refreshToken }
+  } catch (error) {
+    throw new apiError(500, error.message)
+  }
+}
+
 const registerUser = asyncHandler(async (req, res) => {
   // getting data from client
   const { username, email, password } = req.body
@@ -62,5 +77,62 @@ const registerUser = asyncHandler(async (req, res) => {
       )
     )
 })
+
+const loginUser = asyncHandler(async (req, res) => {
+  // get login data from user
+  const { email, username, password } = req.body
+  if (!email || !username)
+    throw new apiError(400, 'username or email is required')
+  // my own way
+  // handle login with email or username
+  // let userExists
+  // if (email) {
+  //   userExists = User.findOne({ email })
+  // } else if (username) {
+  //   userExists = User.findOne({ username })
+  // }
+
+  const user = await User.findOne({ $or: [{ email }, { username }] })
+  // check if user exists in db
+  if (!user) throw new apiError(404, 'user not found')
+  // if user exist match its password using bcrypt
+  // [user] and [User] are not same
+  //  user is our own created while User is mongodb model
+  // so the user is an instance of User and the method created by us is available on this one
+  const isPasswordCorrect = await user.isPasswordCorrect(password)
+
+  if (!isPasswordCorrect) throw new apiError(400, 'invalid credentials')
+  // generate access and refresh token
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+    user._id
+  )
+  // user.refreshToken = refreshToken
+  // send access and refresh token via res/headers/cookies
+  const options = {
+    httpOnly: true,
+    secure: true,
+  }
+
+  return res
+    .status(200)
+    .cookie('accessToken', accessToken, options)
+    .cookie('refreshToken', refreshToken, options)
+    .json(
+      new apiResponse(
+        200,
+        {
+          user: user,
+          accessToken,
+          refreshToken,
+        },
+        'user logged in successfully'
+      )
+    )
+
+  // send user data
+})
+
+const logoutUser = asyncHandler(async (req, res) => {})
 
 export { registerUser }
