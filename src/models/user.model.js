@@ -1,6 +1,7 @@
 import mongoose, { Schema, model } from 'mongoose'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
+import { apiError } from '../utils/apiError.js'
 
 const userSchema = new Schema(
   {
@@ -47,7 +48,8 @@ const userSchema = new Schema(
 )
 
 userSchema.pre('save', async function (next) {
-  this.password = await bcrypt.hash(this.password, 10)
+  if (this.isModified('password'))
+    this.password = await bcrypt.hash(this.password, 10)
   next()
 })
 
@@ -56,32 +58,43 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 }
 
 userSchema.methods.generateRefreshToken = async function () {
-  jwt.sign(
-    {
-      _id: this._id,
-      email: this.email,
-      username: this.username,
-      fullname: this.fullname,
-    },
-    process.env.REFRESH_TOKEN_SECRET,
-    {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
-    }
-  )
+  try {
+    const refreshToken = jwt.sign(
+      {
+        _id: this._id,
+        email: this.email,
+        username: this.username,
+      },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+      }
+    )
+
+    return refreshToken
+  } catch (error) {
+    throw new apiError(500, error.message)
+  }
 }
 
 userSchema.methods.generateAccessToken = async function () {
-  jwt.sign(
-    {
-      _id: this._id,
-      email: this.email,
-      username: this.username,
-      fullname: this.fullname,
-    },
-    process.env.ACCESS_TOKEN_SECRET,
-    {
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
-    }
-  )
+  try {
+    const accessToken = jwt.sign(
+      {
+        _id: this._id,
+        email: this.email,
+        username: this.username,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+      }
+    )
+
+    return accessToken
+  } catch (error) {
+    throw new apiError(500, error.message)
+  }
 }
+
 export const User = model('User', userSchema)
