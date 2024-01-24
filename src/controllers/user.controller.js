@@ -352,7 +352,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new apiResponse(200, channel, 'got user profile successfully'))
+    .json(new apiResponse(200, channel[0], 'got user profile successfully'))
 
   console.log(channel) // note
 })
