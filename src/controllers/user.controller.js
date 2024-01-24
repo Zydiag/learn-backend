@@ -224,9 +224,70 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullname, username } = req.body
-
   if (!fullname || !username)
     throw new apiError(400, 'fullname & username are required')
+
+  const updatedUser = User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullname,
+        username,
+      },
+    },
+    { new: true }
+  ).select('-password')
+
+  return res
+    .status(200)
+    .json(
+      new apiResponse(200, updatedUser, 'account details updated successfully')
+    )
+})
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  // if(!('avatar' in req.files)) throw new apiError(400, 'avatar is required')
+  // ? use file instead of files because we are only uploading one image
+  const localAvatarPath = req.file?.path
+
+  if (!localAvatarPath) throw new apiError(400, 'avatar is required')
+
+  const avatar = await uploadOnCloudinary(localAvatarPath)
+
+  if (!avatar.url) throw new apiError(500, 'unable to update avatar')
+
+  const user = User.findByIdAndUpdate(
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    { new: true }
+  ).select('-password')
+  res
+    .status(200)
+    .json(new apiResponse(200, user, 'avatar updated successfully'))
+})
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  // ? use file instead of files because we are only uploading one image
+  const localCoverImagePath = req.file?.path
+  if (!localCoverImagePath) throw new apiError(400, 'CoverImage is required')
+
+  const coverImage = await uploadOnCloudinary(localCoverImagePath)
+  if (!coverImage.url) throw new apiError(500, 'unable to update CoverImage')
+
+  const user = User.findByIdAndUpdate(
+    {
+      $set: {
+        coverImage: coverImage.url,
+      },
+    },
+    { new: true }
+  ).select('-password')
+  res
+    .status(200)
+    .json(new apiResponse(200, user, 'CoverImage updated successfully'))
 })
 
 export {
@@ -236,4 +297,7 @@ export {
   refreshAccessAndToken,
   changeCurrentPassword,
   getCurrentUser,
+  updateAccountDetails,
+  updateUserAvatar,
+  updateUserCoverImage,
 }
